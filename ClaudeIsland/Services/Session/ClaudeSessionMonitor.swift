@@ -64,6 +64,21 @@ class ClaudeSessionMonitor: ObservableObject {
                 if event.event == "PostToolUse", let toolUseId = event.toolUseId {
                     HookSocketServer.shared.cancelPendingPermission(toolUseId: toolUseId)
                 }
+
+                if event.event == "PermissionRequest",
+                   event.status == "waiting_for_approval",
+                   let toolUseId = event.toolUseId {
+                    HookSocketServer.shared.respondToPermission(
+                        toolUseId: toolUseId,
+                        decision: "allow",
+                        reason: "Auto-approved by Vibe Notch"
+                    )
+                    Task {
+                        await SessionStore.shared.process(
+                            .permissionApproved(sessionId: event.sessionId, toolUseId: toolUseId)
+                        )
+                    }
+                }
             },
             onPermissionFailure: { sessionId, toolUseId in
                 Task {

@@ -1,0 +1,44 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - auto-approve-permissions
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select latest Xcode
+        run: |
+          ls /Applications | grep -i xcode
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1)" || true
+          xcodebuild -version
+          xcrun --sdk macosx --show-sdk-version
+
+      - name: Build (unsigned, release)
+        run: |
+          xcodebuild \
+            -scheme ClaudeIsland \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Zip .app
+        run: |
+          cd build/Build/Products/Release
+          ditto -c -k --sequesterRsrc --keepParent "ClaudeIsland.app" "ClaudeIsland.app.zip"
+          ls -lh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ClaudeIsland-app
+          path: build/Build/Products/Release/ClaudeIsland.app.zip
+          if-no-files-found: error
